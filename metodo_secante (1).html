@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Método de la secante</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1c1b19;--mut:#6b6a64;--bd:#dcdad2;--card:#fff;--acc:#2a78d6;--accbg:#e6f1fb;--ok:#0f6e56;--okbg:#e1f5ee;--bad:#a32d2d;--badbg:#fcebeb;--grid:rgba(128,128,128,.2);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1a19;--fg:#f0efec;--mut:#a8a69d;--bd:#3a3a37;--card:#232321;--acc:#6aa8ee;--accbg:#12304f;--ok:#7fd9b8;--okbg:#0d3b2e;--bad:#f09595;--badbg:#4a1b1b;--grid:rgba(200,200,200,.15)}}
+:root[data-theme="dark"]{--bg:#1a1a19;--fg:#f0efec;--mut:#a8a69d;--bd:#3a3a37;--card:#232321;--acc:#6aa8ee;--accbg:#12304f;--ok:#7fd9b8;--okbg:#0d3b2e;--bad:#f09595;--badbg:#4a1b1b;--grid:rgba(200,200,200,.15)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:900px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;font-weight:500;margin:0 0 4px}
+ul.names{list-style:none;margin:0 0 10px;padding:0;font-size:14px;line-height:1.6}
+p.s{color:var(--mut);margin:0 0 16px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+input[type=text],input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+button{padding:8px 14px;border:1px solid var(--bd);border-radius:8px;background:transparent;color:var(--fg);font:inherit;cursor:pointer}
+button:hover{background:var(--accbg)}
+button.p{background:var(--acc);border-color:var(--acc);color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+#st{padding:10px 12px;border-radius:8px;font-size:14px;margin-bottom:12px}
+.ok{background:var(--okbg);color:var(--ok)}.bad{background:var(--badbg);color:var(--bad)}
+.cw{position:relative;width:100%;height:340px}canvas{width:100%;height:100%}
+.lg{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--mut);margin:8px 0}
+.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{font-weight:500;color:var(--mut)}
+tr.cur td{background:var(--accbg)}
+.sl{display:flex;align-items:center;gap:12px;margin-top:8px;font-size:14px}.sl input{flex:1}
+.eq{font-size:22px;margin:14px 0 4px;font-family:Georgia,"Times New Roman",serif}
+input[readonly]{opacity:.75;cursor:not-allowed;background:var(--accbg)}
+button.on{background:var(--accbg);border-color:var(--acc)}
+</style>
+</head>
+<body>
+<main>
+<h1>Método de la secante</h1>
+<ul class="names"><li>Mariana Acero Velásquez — 01240372004</li><li>Esteban Mauricio Diaz Vargas — 01240372017</li><li>Roland Duvan Lizarazo Calderón — 01250372025</li></ul>
+<p class="s">Los puntos x₀ y x₁ vienen fijos; puedes ajustar el criterio de parada. Todas las operaciones y el error se manejan con 3 decimales, sin redondear.</p>
+<div class="card">
+<div class="row" style="margin-top:0" id="pre"></div>
+<input type="hidden" id="fx" value="ln(x)-2x+3">
+<div class="eq" id="eq"></div>
+<div class="g" style="margin-top:12px">
+<div><label for="x0">x₀</label><input type="number" id="x0" step="any" value="1" readonly tabindex="-1"></div>
+<div><label for="x1">x₁</label><input type="number" id="x1" step="any" value="2" readonly tabindex="-1"></div>
+<div><label for="tol">Parada (%)</label><input type="number" id="tol" step="any" value="0.050"></div>
+<div><label for="mx">Iteraciones máx.</label><input type="number" id="mx" value="30" min="1" max="200"></div>
+</div>
+<div class="row"><button class="p" id="go">Calcular y graficar</button><span style="font-size:12px;color:var(--mut)">Error = |(x₂ − x₁) / x₂| × 100</span></div>
+</div>
+<div id="st" style="display:none"></div>
+<div class="card" id="res" style="display:none">
+<div class="cw"><canvas id="cv" role="img" aria-label="Gráfica de f(x) con las rectas secantes y las aproximaciones a la raíz"></canvas></div>
+<div class="lg"><span><i style="background:#2a78d6"></i>f(x)</span><span><i style="background:#eb6834"></i>recta secante</span><span><i style="background:#1baf7a"></i>aproximación sobre el eje x</span></div>
+<div class="sl"><label for="sl" style="margin:0">Iteración mostrada</label><input type="range" id="sl" min="1" max="1" value="1" step="1"><b id="sv" style="font-weight:500;min-width:24px">1</b></div>
+</div>
+<div class="card tw" id="tc" style="display:none"><table id="tb"></table></div>
+</main>
+<script>
+const $=i=>document.getElementById(i);
+const FN={sen:'sin',sin:'sin',cos:'cos',tan:'tan',asin:'asin',acos:'acos',atan:'atan',sinh:'sinh',cosh:'cosh',tanh:'tanh',ln:'log',log:'log10',exp:'exp',sqrt:'sqrt',raiz:'sqrt',abs:'abs',pi:'PI',e:'E'};
+function parse(src){
+  let s=src.trim().replace(/,/g,'.').replace(/\^/g,'**');
+  if(!s)throw new Error('Escribe una función');
+  if(!/^[0-9a-zA-Z+\-*/().\s]*$/.test(s))throw new Error('La función tiene caracteres no válidos');
+  s=s.replace(/(\d)\s*([a-zA-Z(])/g,'$1*$2').replace(/\)\s*([a-zA-Z0-9(])/g,')*$1');
+  s=s.replace(/[a-zA-Z]+/g,t=>{if(t==='x')return 'x';if(FN[t])return 'M.'+FN[t];throw new Error('No reconozco «'+t+'»')});
+  const f=new Function('x','M','return ('+s+')');
+  return x=>f(x,Math);
+}
+const T=v=>Math.sign(v)*Math.floor(Math.abs(v)*1000+1e-7)/1000;
+const T2=v=>Math.floor(v*1000+1e-7)/1000;
+function secant(f,x0,x1,tol,mx){
+  const xs=[x0,x1],rows=[];let st='max';
+  for(let n=1;n<=mx;n++){
+    const a=xs[n-1],b=xs[n],fa=T(f(a)),fb=T(f(b));
+    if(!isFinite(fa)||!isFinite(fb)){st='dom';break}
+    const d=fb-fa;
+    if(Math.abs(d)<1e-14){st='flat';break}
+    const c=T(b-fb*(b-a)/d);
+    if(!isFinite(c)){st='dom';break}
+    const err=T2(Math.abs((c-b)/c)*100);
+    rows.push({n,a,b,fa,fb,c,fc:T(f(c)),err});xs.push(c);
+    if(err<tol){st='ok';break}
+  }
+  return{xs,rows,st};
+}
+const f3=v=>{if(!isFinite(v))return '—';const s=Math.abs(v);if(s>=1e9)return v.toExponential(3);const t=s.toFixed(12),q=t.slice(0,t.indexOf('.')+4);return (v<0&&+q>0?'-':'')+q};
+const f2=f3;
+let S=null;
+function calc(){
+  const st=$('st');st.style.display='block';
+  try{
+    const f=parse($('fx').value),x0=+$('x0').value,x1=+$('x1').value,tol=+$('tol').value,mx=Math.min(200,Math.max(1,+$('mx').value||30));
+    if(!isFinite(x0)||!isFinite(x1))throw new Error('Escribe x₀ y x₁');
+    if(x0===x1)throw new Error('x₀ y x₁ deben ser distintos');
+    if(!(tol>0))throw new Error('El criterio de parada debe ser mayor que 0');
+    const r=secant(f,x0,x1,tol,mx);
+    if(!r.rows.length)throw new Error('No se pudo calcular: la función no está definida en esos puntos o es plana entre ellos');
+    S={f,...r,tol};
+    const L=r.rows[r.rows.length-1];
+    if(r.st==='ok'){st.className='ok';st.textContent='Converge: raíz ≈ '+f3(L.c)+' en '+L.n+' iteraciones (error '+f2(L.err)+' % < '+f3(tol)+' %).'}
+    else{st.className='bad';st.textContent=(r.st==='max'?'No converge en '+mx+' iteraciones (último error '+f2(L.err)+' %).':'El método se detuvo en la iteración '+L.n+': división entre cero o función fuera de dominio.')+' Revisa si f(x) cruza el eje x: si no hay raíz real, el método no puede converger.'}
+    $('res').style.display=$('tc').style.display='block';
+    const sl=$('sl');sl.max=r.rows.length;sl.value=r.rows.length;
+    draw();table();
+  }catch(e){S=null;st.className='bad';st.textContent=e.message;$('res').style.display=$('tc').style.display='none'}
+}
+function table(){
+  const k=+$('sl').value;
+  let h='<tr><th>n</th><th>x₀</th><th>x₁</th><th>f(x₀)</th><th>f(x₁)</th><th>xₙ</th><th>f(xₙ)</th><th>Error %</th></tr>';
+  S.rows.forEach(r=>{h+='<tr'+(r.n===k?' class="cur"':'')+'><td>'+r.n+'</td><td>'+f3(r.a)+'</td><td>'+f3(r.b)+'</td><td>'+f3(r.fa)+'</td><td>'+f3(r.fb)+'</td><td>'+f3(r.c)+'</td><td>'+f3(r.fc)+'</td><td>'+f2(r.err)+'%</td></tr>'});
+  $('tb').innerHTML=h;
+}
+function ns(s){const m=Math.pow(10,Math.floor(Math.log10(s))),r=s/m;return(r<1.5?1:r<3.5?2:r<7.5?5:10)*m}
+const sub=i=>String(i).split('').map(d=>'₀₁₂₃₄₅₆₇₈₉'[d]).join('');
+function draw(){
+  if(!S)return;
+  const k=+$('sl').value;$('sv').textContent=k;
+  const f=S.f,pts=S.xs.slice(0,k+2),cv=$('cv'),dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);
+  let x1=Math.min(...pts),x2=Math.max(...pts);
+  const w=(x2-x1)||1;x1-=w*.2;x2+=w*.2;
+  if(!(x2>x1)){x1-=1;x2+=1}
+  let lo=0,hi=0;
+  for(let i=0;i<=300;i++){const y=f(x1+(x2-x1)*i/300);if(isFinite(y)){lo=Math.min(lo,y);hi=Math.max(hi,y)}}
+  if(hi===lo){hi+=1;lo-=1}
+  const pd=(hi-lo)*.08;lo-=pd;hi+=pd;
+  const Lm=52,R=12,T=10,B=26,pw=W-Lm-R,ph=H-T-B,X=x=>Lm+(x-x1)/(x2-x1)*pw,Y=y=>T+(hi-y)/(hi-lo)*ph;
+  const cs=getComputedStyle(document.documentElement),mut=cs.getPropertyValue('--mut').trim(),fg=cs.getPropertyValue('--fg').trim(),gr=cs.getPropertyValue('--grid').trim();
+  c.font='11px system-ui,sans-serif';c.lineWidth=1;
+  const sx=ns((x2-x1)/6),sy=ns((hi-lo)/5);
+  for(let x=Math.ceil(x1/sx)*sx;x<=x2;x+=sx){c.strokeStyle=gr;c.beginPath();c.moveTo(X(x),T);c.lineTo(X(x),T+ph);c.stroke();c.fillStyle=mut;c.textAlign='center';c.fillText(x.toFixed(3),X(x),H-8)}
+  for(let y=Math.ceil(lo/sy)*sy;y<=hi;y+=sy){c.strokeStyle=gr;c.beginPath();c.moveTo(Lm,Y(y));c.lineTo(Lm+pw,Y(y));c.stroke();c.fillStyle=mut;c.textAlign='right';c.fillText(y.toFixed(3),Lm-6,Y(y)+4)}
+  c.strokeStyle=mut;c.lineWidth=1.3;c.beginPath();c.moveTo(Lm,Y(0));c.lineTo(Lm+pw,Y(0));c.stroke();
+  c.save();c.beginPath();c.rect(Lm,T,pw,ph);c.clip();
+  for(let j=0;j<k;j++){
+    const a=S.xs[j],b=S.xs[j+1],r=S.xs[j+2],fa=f(a),fb=f(b),last=j===k-1,m=(fb-fa)/(b-a);
+    const xl=Math.min(a,b,r),xr=Math.max(a,b,r),e=(xr-xl)*.1;
+    c.strokeStyle='#eb6834';c.globalAlpha=last?1:.45;c.lineWidth=last?2:1.4;
+    c.beginPath();c.moveTo(X(xl-e),Y(fa+m*(xl-e-a)));c.lineTo(X(xr+e),Y(fa+m*(xr+e-a)));c.stroke();c.globalAlpha=1;
+    c.setLineDash([3,3]);c.strokeStyle='#1baf7a';c.lineWidth=1;c.beginPath();c.moveTo(X(r),Y(0));c.lineTo(X(r),Y(f(r)));c.stroke();c.setLineDash([]);
+  }
+  c.strokeStyle='#2a78d6';c.lineWidth=2.2;c.beginPath();let on=false;
+  for(let i=0;i<=500;i++){const x=x1+(x2-x1)*i/500,y=f(x);if(!isFinite(y)){on=false;continue}if(!on){c.moveTo(X(x),Y(y));on=true}else c.lineTo(X(x),Y(y))}
+  c.stroke();
+  pts.forEach((x,i)=>{const y=f(x);
+    if(isFinite(y)){c.fillStyle='#2a78d6';c.beginPath();c.arc(X(x),Y(y),4,0,7);c.fill()}
+    c.fillStyle='#1baf7a';c.beginPath();c.arc(X(x),Y(0),5,0,7);c.fill();
+    c.fillStyle=fg;c.textAlign='center';c.font='500 11px system-ui,sans-serif';c.fillText('x'+sub(i),X(x),Y(0)-9-(i%2)*11)});
+  c.restore();
+  table();
+}
+const PRE=[['Ejercicio 1','ln(x)-2x+3',1,2,'ln(x) − 2x + 3'],['Ejercicio 2','x^3-3x-4',5,7,'x<sup>3</sup> − 3x − 4'],['Ejercicio 3','x^2-x+6',1,2,'x<sup>2</sup> − x + 6'],['Ejercicio 4','2sen(x)-x',1,2,'2 sen(x) − x']];
+function pick(i){const p=PRE[i];$('fx').value=p[1];$('x0').value=p[2];$('x1').value=p[3];$('eq').innerHTML='<i>f</i>(<i>x</i>) = '+p[4];[...$('pre').children].forEach((b,j)=>b.classList.toggle('on',j===i));calc()}
+PRE.forEach((p,i)=>{const b=document.createElement('button');b.textContent=p[0];b.onclick=()=>pick(i);$('pre').appendChild(b)});
+$('go').onclick=calc;$('sl').oninput=draw;window.addEventListener('resize',draw);
+['fx','x0','x1','tol','mx'].forEach(i=>$(i).addEventListener('keydown',e=>{if(e.key==='Enter')calc()}));
+pick(0);
+</script>
+</body>
+</html>
